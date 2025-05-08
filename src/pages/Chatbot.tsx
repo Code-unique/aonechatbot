@@ -300,57 +300,56 @@ const Chatbot = () => {
     "What new home developments are available through A ONE Real Estate?"
   ];
 
-    const getRelevantQuestions = useCallback(() => {
-        if (!userPreferences.length) {
-            // Return a mix from all categories if no preferences, limit to available categories.
-            const availableCategories = questionCategories.slice(0, Math.min(questionCategories.length, 6));
-            return availableCategories
-                .flatMap(cat => cat.questions.slice(0, 1))
-                .map(q => q.text); // Extract only the question text
-        }
-
-        let relevantQuestions: string[] = [];
-        userPreferences.forEach(preference => {
-            const category = questionCategories.find(cat => cat.name === preference);
-            if (category) {
-                relevantQuestions = [...relevantQuestions, ...category.questions.map(q => q.text)]; // Extract question text
-            }
-        });
-
-        // Ensure no duplicates and limit to a max of 6 questions
-        return [...new Set(relevantQuestions)].slice(0, 6);
-    }, [userPreferences, questionCategories]);
-
-
+  const getRelevantQuestions = useCallback(() => {
+    if (!userPreferences?.length) {
+      // Return a mix from all categories if no preferences
+      const availableCategories = questionCategories.slice(0, 6);
+      return availableCategories
+        .flatMap(cat => cat.questions.slice(0, 1))
+        .map(q => q.text);
+    }
+  
+    const relevantQuestions = userPreferences.flatMap(preference => {
+      const category = questionCategories.find(cat => cat.name === preference);
+      return category?.questions.map(q => q.text) || [];
+    });
+  
+    // Remove duplicates and limit to 6 questions
+    return [...new Set(relevantQuestions)].slice(0, 6);
+  }, [userPreferences, questionCategories]);
+  
+  // Initialize suggested questions - runs only once on mount
   useEffect(() => {
     setSuggestedQuestions(getRelevantQuestions());
-  }, [getRelevantQuestions]);
-
-  const scrollToBottom = () => {
+  }, [getRelevantQuestions]); // Safe because getRelevantQuestions is memoized
+  
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
+  }, []);
+  
+  // Scroll when messages change
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
-
-  const adjustTextareaHeight = () => {
+  }, [messages, scrollToBottom]); // scrollToBottom is memoized
+  
+  const adjustTextareaHeight = useCallback(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
       const newHeight = Math.min(textareaRef.current.scrollHeight, 150);
       textareaRef.current.style.height = `${newHeight}px`;
     }
-  };
-
+  }, []);
+  
+  // Adjust textarea when input changes
   useEffect(() => {
     adjustTextareaHeight();
-  }, [inputValue]);
+  }, [inputValue, adjustTextareaHeight]); // adjustTextareaHeight is memoized
 
     // Analyze user interests based on keywords.  Updated to include more A ONE specific terms.
     const analyzeUserInterests = useCallback((message: string) => {
       const lowerMessage = message.toLowerCase();
       const newPreferences = [...userPreferences];
-  
+ 
       const interestMap: { [key: string]: string } = {
         'buy': 'buying',
         'selling': 'selling',
@@ -380,13 +379,13 @@ const Chatbot = () => {
         'commercial lease': 'commercial',
         'first home buyer': 'buying',  //Could add firstHome category if needed.
       };
-  
+ 
       for (const keyword in interestMap) {
         if (lowerMessage.includes(keyword) && !newPreferences.includes(interestMap[keyword])) {
           newPreferences.push(interestMap[keyword]);
         }
       }
-  
+ 
       if (newPreferences.length !== userPreferences.length) {
         setUserPreferences(newPreferences);
       }
@@ -450,7 +449,6 @@ const Chatbot = () => {
         if (!response) {
             response = responseText;
         }
-
 
       if (!response) {
         throw new Error("Empty response from AI");
@@ -652,7 +650,7 @@ const Chatbot = () => {
               <h4 className="text-lg font-semibold text-realestate-primary mb-4">
                 {messages.length <= 2 ? "Explore A ONE Real Estate Services" : "Here are some suggestions..."}
               </h4>
-              
+             
               {/* Category tabs */}
               <div className="flex flex-wrap gap-2 mb-4">
                 {questionCategories.map((category) => (
@@ -679,22 +677,29 @@ const Chatbot = () => {
                 ))}
               </div>
 
-              {/* Suggested questions grid */}
+              {/* Suggested questions grid - wrapped in mobile-friendly scroll */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {suggestedQuestions.map((question, index) => (
-                  <motion.div
-                    key={index}
-                    variants={suggestionVariants}
-                    initial="initial"
-                    animate="animate"
-                    whileHover="hover"
-                    whileTap="tap"
-                    onClick={() => handleSelectSuggestion(question)}
-                    className="bg-white p-4 rounded-xl border border-gray-200 cursor-pointer hover:border-realestate-primary transition-colors shadow-sm"
-                  >
-                    <p className="text-gray-800">{question}</p>
-                  </motion.div>
-                ))}
+                <AnimatePresence>
+                  {suggestedQuestions.map((question, index) => (
+                    <motion.div
+                      key={index}
+                      variants={suggestionVariants}
+                      initial="initial"
+                      animate="animate"
+                      whileHover="hover"
+                      whileTap="tap"
+                      onClick={() => handleSelectSuggestion(question)}
+                      className="bg-white p-4 rounded-xl border border-gray-200 cursor-pointer hover:border-realestate-primary transition-colors shadow-sm"
+                    >
+                      <section aria-labelledby={`question-${index}`}>
+                        <div className="border-b border-gray-100 pb-3 mb-3">
+                          <h3 id={`question-${index}`} className="sr-only">Suggested Question</h3>
+                        </div>
+                        <p className="text-gray-800">{question}</p>
+                      </section>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
               </div>
             </div>
           )}
@@ -715,7 +720,7 @@ const Chatbot = () => {
                 onClick={() => handleSendMessage()}
                 disabled={!inputValue.trim() || isLoading}
                 className="bg-realestate-primary hover:bg-realestate-secondary text-white rounded-xl h-12 w-12 flex items-center justify-center flex-shrink-0 transition-colors duration-200"
-                aria-label="Send message"
+                aria-label={inputValue.trim() ? `Ask: ${inputValue}` : "Send message"}
               >
                 <Send size={20} />
               </Button>
@@ -729,11 +734,16 @@ const Chatbot = () => {
             </div>
           </div>
         </CardContent>
-        <SuggestedQuestions />
+        <SuggestedQuestions
+  onSelectQuestion={handleSelectSuggestion}
+  userName={userName} // Assuming you have this in your parent
+  // onFeedback={handleFeedbackSubmit} // If you want to use the feedback functionality
+  // questionsPerPage={8} // Optional: Set the number of questions per page
+  className="mt-4" // Optional: Add any custom classes
+/>
       </Card>
     </div>
   );
 };
 
 export default Chatbot;
-

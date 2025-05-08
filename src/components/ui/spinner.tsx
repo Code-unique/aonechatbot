@@ -7,17 +7,16 @@ interface SpinnerProps {
 }
 
 const Spinner: React.FC<SpinnerProps> = ({ size = 'md' }) => {
-  // Define the size class based on the prop value
   let sizeClass = '';
   switch (size) {
     case 'sm':
-      sizeClass = 'w-4 h-4';  // Small size
+      sizeClass = 'w-4 h-4';
       break;
     case 'lg':
-      sizeClass = 'w-8 h-8';  // Large size
+      sizeClass = 'w-8 h-8';
       break;
     default:
-      sizeClass = 'w-6 h-6';  // Default medium size
+      sizeClass = 'w-6 h-6';
   }
 
   return (
@@ -25,4 +24,4 @@ const Spinner: React.FC<SpinnerProps> = ({ size = 'md' }) => {
   );
 };
 
-export default Spinner;  // Default export
+export default Spinner;
